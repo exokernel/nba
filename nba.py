@@ -1591,12 +1591,14 @@ def nb_update_inventory_items(nb, system_dict):
             debug("added raidctl info")
 
         sys.exit(0)
-        
+
         # devices like /dev/sda'
         deviceinfos = [
-            i for i in inventory_items if "name" in i and i["name"].startswith("disk device: ")
+            i
+            for i in inventory_items
+            if "name" in i and i["name"].startswith("disk device: ")
         ]
-        if len(deviceinfos) > 0:
+        if deviceinfos:
             # we have existing device infos
             # add new, remove old, adjust existing (if needed)
             debug(deviceinfos)
