@@ -11,6 +11,7 @@ import os
 import json
 import argparse
 import sys
+import pynetbox
 
 import pkgutil
 

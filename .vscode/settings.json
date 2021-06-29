@@ -1,4 +1,4 @@
 {
     "python.pythonPath": "venv/bin/python3.9",
-    "editor.renderWhitespace": true,
+    "editor.renderWhitespace": "all",
 }
