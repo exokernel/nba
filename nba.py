@@ -36,7 +36,7 @@ if versiontuple(requests.__version__) > versiontuple("2.0.0"):
     use_parens_on_response = True
 
 
-token = "fillmein"  # token for host-agent
+NBTOKEN = "fillmein"  # token for host-agent
 
 NB_HOST = ""
 NB_URL = ""
@@ -120,7 +120,7 @@ def nb_post(path, payload):
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "Authorization": "Token " + token,
+        "Authorization": "Token " + NBTOKEN,
     }
     r = requests.post(USEURL + path, headers=headers, data=json.dumps(payload))
     check_response(r)
@@ -132,7 +132,7 @@ def nb_patch(path, payload):
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "Authorization": "Token " + token,
+        "Authorization": "Token " + NBTOKEN,
     }
     r = requests.patch(USEURL + path, headers=headers, data=json.dumps(payload))
     check_response(r)
@@ -143,7 +143,7 @@ def nb_delete(path):
     debug("deleting to " + path)
     headers = {
         "Accept": "application/json",
-        "Authorization": "Token " + token,
+        "Authorization": "Token " + NBTOKEN,
     }
     r = requests.delete(USEURL + path, headers=headers)
     check_response(r)
@@ -1815,7 +1815,7 @@ if __name__ == "__main__":
     # we start creating/updating things in netbox!
     # Once we have collected all the local system info
     # we start creating/updating things in netbox!
-    nb = pynetbox.api(nb_baseurl, token=nb_token)
+    nb = pynetbox.api(USEURL, token=NBTOKEN)
 
     box = None
     if system_is_virtual():
