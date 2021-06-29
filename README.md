@@ -6,6 +6,8 @@ TODO:
     * netbox docker container
 * Support configuration via config file (and environment variables?)
 * Better logging and debugging (syslog or custom)
+* Real python doc comments
+* Build python documentation
 * Systemd Service
 * Use pynetbox instead of custom functions
 * Redesign and break up into modules for getting different system info
@@ -13,3 +15,4 @@ TODO:
     * get system info via more portable methods and cli commands where possible
 * Make distro and system agnostic. (should work on FreeBSD too)
 * CI/TD via travis-CI to test, build apt package, and build/deploy docker image running in digital ocean
+* Make a pip package

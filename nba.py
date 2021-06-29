@@ -24,6 +24,7 @@ if not found:
 
 import requests
 
+
 def versiontuple(v):
     return tuple(map(int, (v.split("."))))
 
@@ -1473,113 +1474,74 @@ def system_info(box):
     return system_info_dict
 
 
-# Update netbox from the info in system_dict
-def nb_update(system_dict):
+# Update inventory items infos
+def nb_update_inventory_items(nb, system_dict):
     cpuinfo = system_dict["cpuinfo"]
     meminfo = system_dict["meminfo"]
     diskdict = system_dict["diskinfo"]
 
-    results = nb_get("dcim/inventory-items/", {"device": system_dict["box_name"]})[
-        "results"
-    ]
+    def update_disk_totals(items, name, short_name):
+        infos = [i for i in items if i.name == name]
+        if infos:
+            if len(infos) > 1:
+                debug("ERROR: multiple " + name + " items")
+            else:
+                info = infos[0]
+                sysstring = str(diskdict[short_name]) + "GiB"
+                debug("info " + sysstring)
+                debug("desc " + str(info["description"]))
+                if str(sysstring) != info["description"]:
+                    info.description = sysstring
+                    info.save()
+                    debug("updated " + name)
+                else:
+                    debug("nothing to patch")
+        else:
+            # new
+            nb.dcim.inventory_items.create(
+                name=name,
+                device=system_dict["box_id"],
+                description=str(diskdict[short_name]) + "GiB",
+            )
+            debug("add " + name)
+
+    inventory_items = list(
+        nb.dcim.inventory_items.filter(device=system_dict["box_name"])
+    )
 
     if diskdict is not None:
+        update_disk_totals(inventory_items, "hdd total", "hdd")
+        update_disk_totals(inventory_items, "ssd total", "ssd")
 
-        hddinfos = [i for i in results if "name" in i and i["name"] == "hdd total"]
-        if hddinfos:
-            if len(hddinfos) > 1:
-                debug("ERROR: multiple hddinfo items")
-            else:
-                description = hddinfos[0]["description"]
-                sysstring = str(diskdict["hdd"]) + "GiB"
-                debug("hddinfo " + sysstring)
-                debug("desc " + str(description))
-                if str(sysstring) != description:
-                    # update hdd info
-                    r = nb_patch(
-                        "dcim/inventory-items/" + str(hddinfos[0]["id"]) + "/",
-                        {"description": sysstring},
-                    )
-                    debug("updated " + str(r))
-                else:
-                    debug("nothing to patch")
-        else:
-            # add new hdd info
-            r = nb_post(
-                "dcim/inventory-items/",
-                {
-                    "device": system_dict["box_id"],
-                    "name": "hdd total",
-                    "description": str(diskdict["hdd"]) + "GiB",
-                },
-            )
-            debug("added hdd info")
-
-        ssdinfos = [i for i in results if "name" in i and i["name"] == "ssd total"]
-        if ssdinfos:
-            if len(ssdinfos) > 1:
-                debug("ERROR: multiple ssdinfo items")
-            else:
-                description = ssdinfos[0]["description"]
-                sysstring = str(diskdict["ssd"]) + "GiB"
-                debug("ssdinfo " + sysstring)
-                debug("desc " + str(description))
-                if str(sysstring) != description:
-                    # update ssd info
-                    r = nb_patch(
-                        "dcim/inventory-items/" + str(ssdinfos[0]["id"]) + "/",
-                        {"description": sysstring},
-                    )
-                    debug("updated " + str(r))
-                else:
-                    debug("nothing to patch")
-        else:
-            # add new ssd info
-            r = nb_post(
-                "dcim/inventory-items/",
-                {
-                    "device": system_dict["box_id"],
-                    "name": "ssd total",
-                    "description": str(diskdict["ssd"]) + "GiB",
-                },
-            )
-            debug("added ssd info")
-
-        raidinfos = [i for i in results if "name" in i and i["name"] == "raid total"]
+        raidinfos = [i for i in inventory_items if i.name == "raid total"]
         if raidinfos:
             if len(raidinfos) > 1:
                 debug("ERROR: multiple raidinfo items")
             else:
-                description = raidinfos[0]["description"]
+                info = raidinfos[0]
+                description = info["description"]
                 sysstring = str(diskdict["raid"]) + "GiB"
                 debug("raidinfo " + sysstring)
                 debug("desc " + str(description))
                 if str(sysstring) != description:
                     # update raid info
-                    r = nb_patch(
-                        "dcim/inventory-items/" + str(raidinfos[0]["id"]) + "/",
-                        {"description": sysstring},
-                    )
-                    debug("updated " + str(r))
+                    info.description = sysstring
+                    info.save()
+                    debug("updated " + info["name"])
                 else:
                     debug("nothing to patch")
         else:
             # add new raid info
-            r = nb_post(
-                "dcim/inventory-items/",
-                {
-                    "device": system_dict["box_id"],
-                    "name": "raid total",
-                    "description": str(diskdict["raid"]) + "GiB",
-                },
+            nb.dcim.inventory_items.create(
+                name="raid total",
+                device=system_dict["box_id"],
+                description=str(diskdict["raid"]) + "GiB",
             )
             debug("added raid info")
 
         # raid controllers
         raidctls = [
-            i
-            for i in results
-            if "name" in i and i["name"].startswith("raid controller: ")
+            i for i in inventory_items if i.name.startswith("raid controller: ")
         ]
         if raidctls:
             nb_raidctl_names = [n["name"] for n in raidctls]
@@ -1587,13 +1549,10 @@ def nb_update(system_dict):
             for ctl in diskdict["raid_controllers"]:
                 if "raid controller: " + ctl["name"] not in nb_raidctl_names:
                     debug("need to add new ctl " + ctl["name"])
-                    r = nb_post(
-                        "dcim/inventory-items/",
-                        {
-                            "device": system_dict["box_id"],
-                            "name": "raid controller: " + ctl["name"],
-                            "description": ctl["model"],
-                        },
+                    nb.dcim.inventory_items.create(
+                        name="raid controller: " + ctl["name"],
+                        device=system_dict["box_id"],
+                        description=ctl["model"],
                     )
                     debug("added it")
                 else:
@@ -1603,15 +1562,13 @@ def nb_update(system_dict):
                         (
                             c
                             for c in raidctls
-                            if "raid controller: " + ctl["name"] == c["name"]
+                            if "raid controller: " + ctl["name"] == c.name
                         ),
                         None,
                     )
                     if ctl["model"] != nb_ctl["description"]:
-                        r = nb_patch(
-                            "dcim/inventory-items/" + str(nb_ctl["id"]) + "/",
-                            {"description": ctl["model"]},
-                        )
+                        nb_ctl.description = ctl["model"]
+                        nb_ctl.save()
                         debug("updated it")
             # remove
             for nb_ctl_name in nb_raidctl_names:
@@ -1620,29 +1577,26 @@ def nb_update(system_dict):
                     for c in diskdict["raid_controllers"]
                 ]:
                     debug(nb_ctl_name + " needs to be removed")
-                    nb_ctl = next(
-                        (c for c in raidctls if nb_ctl_name == c["name"]), None
-                    )
+                    nb_ctl = next((c for c in raidctls if nb_ctl_name == c.name), None)
                     debug("removing " + str(nb_ctl_name))
-                    nb_delete("dcim/inventory-items/" + str(nb_ctl["id"]) + "/")
+                    nb_ctl.delete()
         else:
             # add new raid info
             for c in diskdict["raid_controllers"]:
-                r = nb_post(
-                    "dcim/inventory-items/",
-                    {
-                        "device": system_dict["box_id"],
-                        "name": "raid controller: " + c["name"],
-                        "description": c["model"],
-                    },
+                nb.dcim.inventory_items.create(
+                    name="raid controller: " + c["name"],
+                    device=system_dict["box_id"],
+                    description=c["model"],
                 )
             debug("added raidctl info")
 
+        sys.exit(0)
+        
         # devices like /dev/sda'
         deviceinfos = [
-            i for i in results if "name" in i and i["name"].startswith("disk device: ")
+            i for i in inventory_items if "name" in i and i["name"].startswith("disk device: ")
         ]
-        if deviceinfos:
+        if len(deviceinfos) > 0:
             # we have existing device infos
             # add new, remove old, adjust existing (if needed)
             debug(deviceinfos)
@@ -1702,8 +1656,11 @@ def nb_update(system_dict):
                 )
             debug("device info added")
 
-    nbcpuinfos = [i for i in results if "name" in i and i["name"] == "cpuinfo"]
-    if nbcpuinfos:
+        sys.exit(0)
+    sys.exit(0)
+
+    nbcpuinfos = [i for i in inventory_items if "name" in i and i["name"] == "cpuinfo"]
+    if len(nbcpuinfos) > 0:
         if len(nbcpuinfos) > 1:
             debug("ERROR: multiple cpuinfo items")
         else:
@@ -1729,8 +1686,8 @@ def nb_update(system_dict):
         )
         debug("added cpuinfo")
 
-    nbmeminfos = [i for i in results if "name" in i and i["name"] == "meminfo"]
-    if nbmeminfos:
+    nbmeminfos = [i for i in inventory_items if "name" in i and i["name"] == "meminfo"]
+    if len(nbmeminfos) > 0:
         if len(nbmeminfos) > 1:
             debug("ERROR: multiple meminfo items")
         else:
@@ -1776,6 +1733,18 @@ def nb_is_in_maint_mode():
     r = requests.get(USEMAINTURL)
     # debug('maint mode: ' + r.text.strip())
     return r.status_code == 200
+
+
+def fetch_box(api, name):
+    if system_is_virtual():
+        box = api.virtualization.virtual_machines.get(name=name)
+    else:
+        box = api.dcim.devices.get(name=name)
+
+    if not box:
+        bail("failed to get " + name)
+
+    return box
 
 
 # Do the thing
@@ -1841,16 +1810,34 @@ if __name__ == "__main__":
 
     # Once we have collected all the local system info
     # we start creating/updating things in netbox!
+    # Once we have collected all the local system info
+    # we start creating/updating things in netbox!
+    nb = pynetbox.api(nb_baseurl, token=nb_token)
 
-    box = nb_box(hostname)
-    if box is None:
-        if system_is_virtual():
-            box = nb_vm_add(hostname)
-        else:
-            box = nb_device_add(hostname)
-    box_id = box["id"]
-    debug("status " + str(box["status"]["value"]))
-    debug(str(box))
+    box = None
+    if system_is_virtual():
+
+        box = nb.virtualization.virtual_machines.get(name=hostname)
+        if box is None:
+            cluster = nb.virtualization.clusters.get(name="Ganeti Group: default")
+            box = nb.virtualization.virtual_machines.create(
+                name=hostname, cluster=cluster.id
+            )
+    else:
+        box = nb.dcim.devices.get(name=hostname)
+        if box is None:
+            device_type = nb.dcim.device_types.get(model="1U-S")
+            device_role = nb.dcim.device_roles.get(name="Server")
+            site = nb.dcim.sites.get(name="ATG Westin Seattle")
+            box = nb.dcim.devices.create(
+                name=hostname,
+                device_type=device_type.id,
+                device_role=device_role.id,
+                site=site.id,
+            )
+
+    box_id = box.id
+    debug("{} {} {}".format(box.id, box, box.status))
 
     if args.nuketags:
         # clear existing tags. this is typically done on the first run of the agent on install
@@ -1858,13 +1845,22 @@ if __name__ == "__main__":
         box = nb_box(hostname)  # get box again since we just updated tags
 
     # set box to active if it isn't already
-    if box["status"]["value"] != "active":
-        nb_activate(box)
+    if str(box.status) != "Active":
+        debug("would activate")
+        box.status = "active"
+        if not box.save():
+            bail("failed to activate box")
+
+    # fetch box again
+    box = fetch_box(nb, hostname)
+    debug(str(dict(box)))
 
     if not system_is_virtual():
         sys_dict = system_info(box)
         debug(str(sys_dict))
-        nb_update(sys_dict)
+        nb_update_inventory_items(nb, sys_dict)
+
+    sys.exit(0)
 
     nb_update_system_class(box, system_class)
     # fetch box again, cause we might have just updated tags
