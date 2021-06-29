@@ -1749,6 +1749,9 @@ def fetch_box(api, name):
 
     return box
 
+# Actually do the thing
+def main():
+    pass
 
 # Do the thing
 if __name__ == "__main__":
