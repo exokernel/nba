@@ -1364,7 +1364,9 @@ def system_diskinfo():
                 lsblk_data = next(
                     (d for d in lsblk if d["name"] in device), None
                 )  # see if we have lsblk info
-                if lsblk_data["size"]:
+                if not lsblk_data:
+                    continue
+                if lsblk_data and lsblk_data["size"]:
                     size = round(float(lsblk_data["size"]) / (1024 * 1024 * 1024), 2)
                 d_totals["devices"].append(
                     {"name": device, "size": str(size) + "GiB (RAID)"}
@@ -1389,7 +1391,9 @@ def system_diskinfo():
                 lsblk_data = next(
                     (d for d in lsblk if d["name"] in device), None
                 )  # see if we have lsblk info
-                if lsblk_data and lsblk_data["rota"] == "0":
+                if not lsblk_data:
+                    continue
+                if lsblk_data["rota"] == "0":
                     disk_data["rota"] = False
                 # always prefer lsblk size to lshw size
                 if lsblk_data["size"]:
@@ -1749,9 +1753,11 @@ def fetch_box(api, name):
 
     return box
 
+
 # Actually do the thing
 def main():
     pass
+
 
 # Do the thing
 if __name__ == "__main__":
