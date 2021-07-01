@@ -130,3 +130,4 @@ dmypy.json
 pynba.py
 .DS_Store
 .vscode/
+.devcontainer/
