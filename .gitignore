@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 pynba.py
 .DS_Store
+.vscode/
