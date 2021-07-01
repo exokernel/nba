@@ -1280,7 +1280,7 @@ def raid_disk_info_storcli(cmd):
                 }
             )
 
-        # TODO: See if we can get os drive info for the virtal disk if there's only 1
+        # TODO: See if we can get os drive info for the virtual disk if there's only 1
 
         controllers.append(controller_dict)
 
